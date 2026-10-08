@@ -1,61 +1,87 @@
-<!-- Pakkmaxx: VerzChat's AI briefing for this lead (verzchat_crm.briefing). The HTML is rendered and
-     sanitised on the server and passed through sanitizeHTML() again here. -->
+<!-- Pakkmaxx: VerzChat's AI briefing for this lead (verzchat_crm.briefing), in Frappe CRM's own styles
+     (prose-f, EmptyState, LoadingIndicator, text tokens). No buttons: the stored briefing is shown, and a new
+     one is generated automatically only when the server says it is missing or out of date. The HTML is
+     rendered and sanitised on the server and passed through sanitizeHTML() again here. -->
 <!-- eslint-disable vue/no-v-html -->
 <template>
-  <div class="flex h-full flex-col px-3 pb-5 sm:px-10">
-    <!-- the tab header above already shows the "AI Briefing" title -->
-    <div class="mb-3 flex items-center justify-end">
-      <Button
-        v-if="b.can_generate"
-        :variant="b.html ? 'subtle' : 'solid'"
-        :label="b.html ? __('Refresh briefing') : __('Generate briefing')"
-        :loading="generating"
-        :disabled="generating"
-        @click="generate"
-      />
-    </div>
-    <div v-if="briefing.loading && !briefing.data" class="flex flex-1 items-center justify-center gap-3 text-ink-gray-4">
-      <LoadingIndicator class="h-5 w-5" />
-    </div>
-    <template v-else>
-      <div v-if="generating" class="mb-3 rounded bg-surface-gray-2 px-3 py-2 text-sm text-ink-gray-7">
-        {{ __('Generating a new briefing from the WhatsApp conversation… this can take up to a minute.') }}
-      </div>
-      <div v-if="b.status == 'Failed'" class="mb-3 rounded bg-surface-red-1 px-3 py-2 text-sm text-ink-red-4">
-        {{ __('Last attempt failed: {0}', [b.error || __('unknown error')]) }}
-      </div>
-      <div v-if="b.stale" class="mb-3 rounded bg-surface-amber-1 px-3 py-2 text-sm text-ink-amber-4">
-        {{ __('New messages arrived after this briefing. Refresh to include them.') }}
-      </div>
-      <div v-if="b.is_fallback" class="mb-3 rounded bg-surface-gray-2 px-3 py-2 text-sm text-ink-gray-7">
-        {{ __('Basic summary only: the VerzChat AI was unavailable when this was generated.') }}
-      </div>
-      <div v-if="b.html">
-        <div class="prose prose-sm max-w-none text-ink-gray-8" v-html="sanitizeHTML(b.html)" />
-        <div class="mt-4 text-xs text-ink-gray-5">
-          {{ __('Generated {0}', [b.generated_at_display || '']) }}
-          <span v-if="b.generated_by">· {{ __('requested by {0}', [b.generated_by]) }}</span>
-          · {{ __('from VerzChat') }}
-        </div>
-      </div>
-      <div v-else-if="!generating && b.status != 'Generating'" class="flex flex-1 flex-col items-center justify-center gap-2 text-ink-gray-5">
-        <SparkleIcon class="h-8 w-8 text-ink-gray-4" />
-        <div class="text-base">{{ briefing.error ? errorText : __('No AI briefing yet for this lead.') }}</div>
-      </div>
-    </template>
+  <div
+    v-if="briefing.loading && !briefing.data"
+    class="flex flex-1 flex-col items-center justify-center gap-3 text-2xl-medium text-ink-gray-4"
+  >
+    <LoadingIndicator class="h-6 w-6" />
+    <span>{{ __('Loading...') }}</span>
   </div>
+  <EmptyState
+    v-else-if="loadError"
+    name="AI Briefing"
+    :title="__('AI briefing unavailable')"
+    :description="loadError"
+    :icon="SparkleIcon"
+  />
+  <div v-else-if="b.html" class="px-3 pb-5 sm:px-10">
+    <div v-if="generating" class="mb-3 flex items-center gap-2 text-p-sm text-ink-gray-5">
+      <LoadingIndicator class="h-4 w-4" />
+      <span>{{ __('Updating with the latest messages…') }}</span>
+    </div>
+    <div v-else-if="b.status == 'Failed'" class="mb-3 text-p-sm text-ink-red-4">
+      {{ __('Could not update the briefing: {0}', [b.error || __('unknown error')]) }}
+    </div>
+    <div v-if="b.is_fallback" class="mb-3 text-p-sm text-ink-gray-5">
+      {{ __('Basic summary only: the VerzChat AI was unavailable when this was generated.') }}
+    </div>
+    <div
+      class="prose-f prose-sm max-w-none text-ink-gray-8 [overflow-wrap:break-word] [word-break:normal]"
+      v-html="sanitizeHTML(b.html)"
+    />
+    <div class="mt-4 text-p-sm text-ink-gray-5">
+      {{ __('Generated {0}', [b.generated_at_display || '']) }}
+      <span v-if="b.generated_by"> · {{ __('requested by {0}', [b.generated_by]) }}</span>
+      · {{ __('from VerzChat') }}
+    </div>
+  </div>
+  <div
+    v-else-if="generating"
+    class="flex flex-1 flex-col items-center justify-center gap-3 text-ink-gray-5"
+  >
+    <LoadingIndicator class="h-6 w-6 text-ink-gray-4" />
+    <span class="text-lg-medium text-ink-gray-8">{{ __('Preparing the AI briefing') }}</span>
+    <span class="text-center text-p-base text-ink-gray-6">
+      {{ __('Reading the WhatsApp conversation… this can take up to a minute.') }}
+    </span>
+  </div>
+  <EmptyState
+    v-else-if="b.status == 'Failed'"
+    name="AI Briefing"
+    :title="__('AI briefing unavailable')"
+    :description="b.error || __('Please try again later.')"
+    :icon="SparkleIcon"
+  />
+  <EmptyState
+    v-else
+    name="AI Briefing"
+    :title="__('No AI briefing yet')"
+    :description="__('It is prepared automatically once this lead has a WhatsApp conversation.')"
+    :icon="SparkleIcon"
+  />
 </template>
 
 <script setup>
+import EmptyState from '@/components/ListViews/EmptyState.vue'
+import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
 import SparkleIcon from '@/components/Icons/SparkleIcon.vue'
 import { sanitizeHTML } from '@/utils'
 import { globalStore } from '@/stores/global'
-import { Button, LoadingIndicator, call, createResource, toast } from 'frappe-ui'
+import { call, createResource } from 'frappe-ui'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const props = defineProps({
   docname: { type: String, required: true },
 })
+
+// Lead + conversation state for which this browser session already asked for a new briefing. With the
+// server-side checks (freshness, one generation per lead, rate limit) this keeps re-renders and tab switches
+// from re-asking, while new customer messages (a new conversation_at) allow one new check.
+const requested = (window.__pkxBriefingRequested ||= new Set())
 
 const { $socket } = globalStore()
 const generating = ref(false)
@@ -66,14 +92,34 @@ const briefing = createResource({
   params: { lead: props.docname },
   cache: ['ai_briefing', props.docname],
   auto: true,
-  onSuccess: (data) => {
-    if (data?.status === 'Generating') return watchUntilDone()
-    stopWatching()
-  },
+  onSuccess: (data) => handle(data),
 })
 
 const b = computed(() => briefing.data || {})
-const errorText = computed(() => briefing.error?.messages?.[0] || __('Could not load the AI briefing'))
+const loadError = computed(() =>
+  briefing.error ? briefing.error.messages?.[0] || __('Could not load the AI briefing') : '',
+)
+
+function handle(data) {
+  if (data?.status === 'Generating') return watchUntilDone()
+  stopWatching()
+  const key = `${props.docname}|${data?.conversation_at || ''}`
+  if (data?.auto_generate && !requested.has(key)) {
+    requested.add(key)
+    ensure()
+  }
+}
+
+async function ensure() {
+  try {
+    const data = await call('verzchat_crm.briefing.ensure_briefing', { lead: props.docname })
+    briefing.setData(data)
+    if (data?.status === 'Generating') watchUntilDone()
+  } catch (e) {
+    // e.g. rate limited or VerzChat disabled: keep showing what we have, never retry in a loop
+    stopWatching()
+  }
+}
 
 function stopWatching() {
   generating.value = false
@@ -84,30 +130,17 @@ function stopWatching() {
 function watchUntilDone(tries = 40) {
   generating.value = true
   if (timer) clearTimeout(timer)
-  if (tries <= 0) {
-    stopWatching()
-    toast.error(__('The AI briefing is taking too long; try again later'))
-    return
-  }
+  if (tries <= 0) return stopWatching()
   timer = setTimeout(async () => {
     const data = await call('verzchat_crm.briefing.get_briefing', { lead: props.docname }).catch(() => null)
     if (data && data.status !== 'Generating') {
       briefing.setData(data)
+      requested.add(`${props.docname}|${data.conversation_at || ''}`) // the server decided for this state
       stopWatching()
     } else {
       watchUntilDone(tries - 1)
     }
   }, 3000)
-}
-
-async function generate() {
-  try {
-    const data = await call('verzchat_crm.briefing.generate_briefing', { lead: props.docname })
-    briefing.setData(data)
-    watchUntilDone()
-  } catch (e) {
-    toast.error(e?.messages?.[0] || __('Could not start the AI briefing'))
-  }
 }
 
 function onReady(data) {
