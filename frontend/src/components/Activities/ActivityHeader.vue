@@ -59,7 +59,7 @@
       />
     </div>
     <Dropdown
-      v-else-if="title != 'Quotations'"
+      v-else-if="title != 'Quotations' && title != 'AI Briefing'"
       :options="defaultActions"
       @click.stop
     >
