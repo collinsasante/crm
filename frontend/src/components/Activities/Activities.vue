@@ -11,8 +11,9 @@
     :modalRef="modalRef"
   />
   <FadedScrollableDiv class="flex flex-col h-full overflow-y-auto">
+    <AIBriefingArea v-if="title == 'AI Briefing'" :docname="docname" />
     <div
-      v-if="all_activities?.loading"
+      v-else-if="all_activities?.loading"
       class="flex flex-1 flex-col items-center justify-center gap-3 text-2xl-medium text-ink-gray-4"
     >
       <LoadingIndicator class="h-6 w-6" />
@@ -455,6 +456,7 @@ import TaskIcon from '@/components/Icons/TaskIcon.vue'
 import AttachmentIcon from '@/components/Icons/AttachmentIcon.vue'
 import WhatsAppIcon from '@/components/Icons/WhatsAppIcon.vue'
 import WhatsAppArea from '@/components/Activities/WhatsAppArea.vue'
+import AIBriefingArea from '@/components/Activities/AIBriefingArea.vue'
 import WhatsAppBox from '@/components/Activities/WhatsAppBox.vue'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
 import EmptyState from '@/components/ListViews/EmptyState.vue'
