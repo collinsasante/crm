@@ -106,6 +106,7 @@ function handle(data) {
   const key = `${props.docname}|${data?.conversation_at || ''}`
   if (data?.auto_generate && !requested.has(key)) {
     requested.add(key)
+    generating.value = true // show "Preparing…" at once, not a momentary "No AI briefing yet"
     ensure()
   }
 }
