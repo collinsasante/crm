@@ -69,88 +69,26 @@
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
 import SparkleIcon from '@/components/Icons/SparkleIcon.vue'
+import { loadBriefing } from '@/composables/aiBriefing'
 import { sanitizeHTML } from '@/utils'
 import { globalStore } from '@/stores/global'
-import { call, createResource } from 'frappe-ui'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 
 const props = defineProps({
   docname: { type: String, required: true },
 })
 
-// Lead + conversation state for which this browser session already asked for a new briefing. With the
-// server-side checks (freshness, one generation per lead, rate limit) this keeps re-renders and tab switches
-// from re-asking, while new customer messages (a new conversation_at) allow one new check.
-const requested = (window.__pkxBriefingRequested ||= new Set())
+// Shared per-lead state (see composables/aiBriefing.js): every mounted view shows the same thing.
+const state = loadBriefing(props.docname)
+const briefing = computed(() => ({ loading: state.loading, data: state.data }))
+const b = computed(() => state.data || {})
+const generating = computed(() => state.generating)
+const loadError = computed(() => state.error)
 
 const { $socket } = globalStore()
-const generating = ref(false)
-let timer = null
-
-const briefing = createResource({
-  url: 'verzchat_crm.briefing.get_briefing',
-  params: { lead: props.docname },
-  cache: ['ai_briefing', props.docname],
-  auto: true,
-  onSuccess: (data) => handle(data),
-})
-
-const b = computed(() => briefing.data || {})
-const loadError = computed(() =>
-  briefing.error ? briefing.error.messages?.[0] || __('Could not load the AI briefing') : '',
-)
-
-function handle(data) {
-  if (data?.status === 'Generating') return watchUntilDone()
-  stopWatching()
-  const key = `${props.docname}|${data?.conversation_at || ''}`
-  if (data?.auto_generate && !requested.has(key)) {
-    requested.add(key)
-    generating.value = true // show "Preparing…" at once, not a momentary "No AI briefing yet"
-    ensure()
-  }
-}
-
-async function ensure() {
-  try {
-    const data = await call('verzchat_crm.briefing.ensure_briefing', { lead: props.docname })
-    briefing.setData(data)
-    if (data?.status === 'Generating') watchUntilDone()
-  } catch (e) {
-    // e.g. rate limited or VerzChat disabled: keep showing what we have, never retry in a loop
-    stopWatching()
-  }
-}
-
-function stopWatching() {
-  generating.value = false
-  if (timer) clearTimeout(timer)
-  timer = null
-}
-
-function watchUntilDone(tries = 40) {
-  generating.value = true
-  if (timer) clearTimeout(timer)
-  if (tries <= 0) return stopWatching()
-  timer = setTimeout(async () => {
-    const data = await call('verzchat_crm.briefing.get_briefing', { lead: props.docname }).catch(() => null)
-    if (data && data.status !== 'Generating') {
-      briefing.setData(data)
-      requested.add(`${props.docname}|${data.conversation_at || ''}`) // the server decided for this state
-      stopWatching()
-    } else {
-      watchUntilDone(tries - 1)
-    }
-  }, 3000)
-}
-
 function onReady(data) {
-  if (data?.lead === props.docname) briefing.reload()
+  if (data?.lead === props.docname) loadBriefing(props.docname, { force: true })
 }
-
 onMounted(() => $socket.on('verzchat_briefing', onReady))
-onBeforeUnmount(() => {
-  $socket.off('verzchat_briefing', onReady)
-  stopWatching()
-})
+onBeforeUnmount(() => $socket.off('verzchat_briefing', onReady))
 </script>
