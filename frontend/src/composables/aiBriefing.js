@@ -53,11 +53,11 @@ function watchUntilDone(lead, tries = 40) {
   }, 3000)
 }
 
-async function ensure(lead) {
+async function ensure(lead, retry = false) {
   const s = briefings[lead]
   s.generating = true // "Preparing…" at once
   try {
-    const data = await call('verzchat_crm.briefing.ensure_briefing', { lead })
+    const data = await call('verzchat_crm.briefing.ensure_briefing', { lead, retry: retry ? 1 : 0 })
     setState(lead, data)
     if (data?.status === 'Generating') watchUntilDone(lead)
     else stopWatching(lead)
@@ -76,6 +76,13 @@ function handle(lead, data) {
     s.requested.add(key)
     ensure(lead)
   }
+}
+
+// "Try again" after a failed generation (the server allows it only for a failed briefing, rate limited).
+export function retryBriefing(lead) {
+  const s = briefings[lead]
+  if (!s || s.generating || s.timer) return
+  ensure(lead, true)
 }
 
 export function loadBriefing(lead, { force = false } = {}) {
