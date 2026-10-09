@@ -1,5 +1,5 @@
 <!-- Pakkmaxx: VerzChat's AI briefing for this lead (verzchat_crm.briefing), in Frappe CRM's own styles
-     (prose-f, EmptyState, LoadingIndicator, text tokens). No buttons: the stored briefing is shown, and a new
+     (prose-f, EmptyState, LoadingIndicator, text tokens). The stored briefing is shown, and a new
      one is generated automatically only when the server says it is missing or out of date. The HTML is
      rendered and sanitised on the server and passed through sanitizeHTML() again here. -->
 <!-- eslint-disable vue/no-v-html -->
@@ -23,8 +23,9 @@
       <LoadingIndicator class="h-4 w-4" />
       <span>{{ __('Updating with the latest messages…') }}</span>
     </div>
-    <div v-else-if="b.status == 'Failed'" class="mb-3 text-p-sm text-ink-red-4">
-      {{ __('Could not update the briefing: {0}', [b.error || __('unknown error')]) }}
+    <div v-else-if="b.status == 'Failed'" class="mb-3 flex flex-wrap items-center gap-2 text-p-sm text-ink-red-4">
+      <span>{{ __('Could not update the briefing: {0}', [b.error || __('unknown error')]) }}</span>
+      <Button v-if="b.can_retry" variant="ghost" size="sm" :label="__('Try again')" @click="retry" />
     </div>
     <div v-if="b.is_fallback" class="mb-3 text-p-sm text-ink-gray-5">
       {{ __('Basic summary only: the VerzChat AI was unavailable when this was generated.') }}
@@ -49,11 +50,29 @@
       {{ __('Reading the WhatsApp conversation… this can take up to a minute.') }}
     </span>
   </div>
+  <!-- same markup/classes as Frappe CRM's EmptyState, which cannot hold a button -->
+  <div v-else-if="b.status == 'Failed'" class="relative flex h-full w-full justify-center">
+    <div class="absolute left-1/2 top-[35%] flex w-full max-w-md -translate-x-1/2 flex-col items-center gap-3 px-4">
+      <SparkleIcon class="size-7.5 text-ink-gray-5" />
+      <div class="flex flex-col items-center gap-1">
+        <span class="text-lg-medium text-ink-gray-8">{{ __('AI briefing unavailable') }}</span>
+        <span class="text-center text-p-base text-ink-gray-6">{{ b.error || __('Please try again later.') }}</span>
+      </div>
+      <Button v-if="b.can_retry" variant="subtle" :label="__('Try again')" @click="retry" />
+    </div>
+  </div>
   <EmptyState
-    v-else-if="b.status == 'Failed'"
+    v-else-if="b.status == 'No Conversation'"
     name="AI Briefing"
-    :title="__('AI briefing unavailable')"
-    :description="b.error || __('Please try again later.')"
+    :title="__('No WhatsApp conversation')"
+    :description="__('The AI briefing is prepared from the lead\'s WhatsApp conversation. Start one from the WhatsApp Chat tab.')"
+    :icon="SparkleIcon"
+  />
+  <EmptyState
+    v-else-if="b.status == 'No Messages'"
+    name="AI Briefing"
+    :title="__('No WhatsApp messages yet')"
+    :description="__('The briefing is prepared automatically once the conversation has messages.')"
     :icon="SparkleIcon"
   />
   <EmptyState
@@ -69,9 +88,10 @@
 import EmptyState from '@/components/ListViews/EmptyState.vue'
 import LoadingIndicator from '@/components/Icons/LoadingIndicator.vue'
 import SparkleIcon from '@/components/Icons/SparkleIcon.vue'
-import { loadBriefing } from '@/composables/aiBriefing'
+import { loadBriefing, retryBriefing } from '@/composables/aiBriefing'
 import { sanitizeHTML } from '@/utils'
 import { globalStore } from '@/stores/global'
+import { Button } from 'frappe-ui'
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 
 const props = defineProps({
@@ -84,6 +104,7 @@ const briefing = computed(() => ({ loading: state.loading, data: state.data }))
 const b = computed(() => state.data || {})
 const generating = computed(() => state.generating)
 const loadError = computed(() => state.error)
+const retry = () => retryBriefing(props.docname)
 
 const { $socket } = globalStore()
 function onReady(data) {
