@@ -67,9 +67,11 @@
   </div>
   <div v-if="doc.name" class="flex h-full overflow-hidden">
     <Tabs
+      ref="tabsRef"
       v-model="tabIndex"
       as="div"
       :tabs="tabs"
+      :class="{ 'pkx-compact-tabs': compactTabs }"
       class="flex flex-1 overflow-auto flex-col [&_[role='tab']]:px-0 [&_[role='tab']]:shrink-0 [&_[role='tablist']]:px-3 [&_[role='tablist']]:min-h-[45px] [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
       <template #tab-panel="{ tab }">
@@ -163,6 +165,7 @@ import { useDocument } from '@/data/document'
 import { isMobileView } from '@/composables/settings'
 import { whatsappEnabled } from '@/composables/whatsapp'
 import { aiBriefingEnabled } from '@/composables/aiBriefing'
+import { useCompactTabs } from '@/composables/compactTabs'
 import { useActiveTabManager } from '@/composables/useActiveTabManager'
 import { useVisitedRecords } from '@/composables/useVisitedRecords'
 import {
@@ -360,6 +363,10 @@ const tabs = computed(() => {
 })
 
 const { tabIndex } = useActiveTabManager(tabs, 'lastLeadTab')
+
+// Pakkmaxx: inactive tabs collapse to icons when the labels do not fit
+const tabsRef = ref(null)
+const { compact: compactTabs } = useCompactTabs(tabsRef)
 
 const sections = createResource({
   url: 'crm.fcrm.doctype.crm_fields_layout.crm_fields_layout.get_sidepanel_sections',

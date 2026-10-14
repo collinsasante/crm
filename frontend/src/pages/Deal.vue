@@ -42,6 +42,7 @@
       v-model="tabIndex"
       as="div"
       :tabs="tabs"
+      :class="{ 'pkx-compact-tabs': compactTabs }"
       class="flex flex-1 overflow-hidden flex-col [&_[role='tab']]:px-0 [&_[role='tab']]:shrink-0 [&_[role='tablist']]:px-5 [&_[role='tablist']::-webkit-scrollbar]:h-0 [&_[role='tablist']]:min-h-[45px] [&_[role='tablist']]:gap-7.5 [&_[role='tabpanel']:not([hidden])]:flex [&_[role='tabpanel']:not([hidden])]:grow"
     >
       <template #tab-panel>
@@ -382,6 +383,7 @@ import { statusesStore } from '@/stores/statuses'
 import { getMeta } from '@/stores/meta'
 import { useDocument } from '@/data/document'
 import { whatsappEnabled } from '@/composables/whatsapp'
+import { useCompactTabs } from '@/composables/compactTabs'
 import { canViewQuotations } from '@/composables/erpnext'
 import { callEnabled } from '@/composables/telephony'
 import { useCommandPaletteContext } from '@/composables/useCommandPalette'
@@ -805,6 +807,8 @@ const { tabIndex, changeTabTo } = useActiveTabManager(tabs, 'lastDealTab')
 // keep the active tab visible — later tabs (e.g. Quotations) otherwise stay
 // scrolled out of view behind the right panel
 const dealTabsRef = ref(null)
+// Pakkmaxx: inactive tabs collapse to icons when the labels do not fit (laptop screens)
+const { compact: compactTabs } = useCompactTabs(dealTabsRef)
 function scrollActiveTabIntoView() {
   nextTick(() => {
     dealTabsRef.value?.$el
