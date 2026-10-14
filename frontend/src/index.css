@@ -29,3 +29,13 @@
 .menu-content {
   z-index: 101;
 }
+
+/* Pakkmaxx: compact Lead/Deal tab bar when the labels do not fit (see composables/compactTabs.js).
+   Inactive tabs show only their icon (label in the tooltip); the selected tab keeps its label. */
+.pkx-compact-tabs [role='tablist'] {
+  column-gap: 1.25rem !important;
+}
+.pkx-compact-tabs [role='tab'][data-state='inactive'] {
+  font-size: 0;
+  gap: 0;
+}
