@@ -66,6 +66,15 @@
       @blur="rows = 1"
       @keydown.enter.stop="(e) => sendTextMessage(e)"
     />
+    <!-- Pakkmaxx: explicit Send button (Enter still sends; Shift+Enter adds a line) -->
+    <Button
+      variant="solid"
+      class="h-8 shrink-0"
+      :label="__('Send')"
+      icon-left="send"
+      :disabled="!content.trim()"
+      @click="sendFromButton"
+    />
   </div>
 </template>
 
@@ -75,6 +84,7 @@ import SmileIcon from '@/components/Icons/SmileIcon.vue'
 import { sanitizeHTML } from '@/utils'
 import { useTelemetry } from 'frappe-ui/frappe'
 import {
+  Button,
   createResource,
   Textarea,
   FileUploader,
@@ -116,6 +126,13 @@ function sendTextMessage(event) {
   if (event.shiftKey) return
   sendWhatsAppMessage()
   textareaRef.value.el?.blur()
+  content.value = ''
+  capture('whatsapp_send_message')
+}
+
+function sendFromButton() {
+  if (!content.value.trim()) return
+  sendWhatsAppMessage()
   content.value = ''
   capture('whatsapp_send_message')
 }
